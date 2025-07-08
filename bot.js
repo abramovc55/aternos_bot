@@ -2,16 +2,16 @@ const mineflayer = require('mineflayer');
 
 function createBot() {
   const bot = mineflayer.createBot({
-    host: 'testys.aternos.me', // ← замени на свой IP Aternos
-    port: 44813, // обычно 25565
-    username: 'Mr_afk', // ник для входа
-    version: '1.21.1' // или та версия, на которой твой сервер
+    host: 'ТВОЙ_АДРЕС.aternos.me', // замени на свой адрес
+    port: 25565,
+    username: 'number1_of1', // или любой другой ник
+    version: '1.21.1'
   });
 
   bot.on('spawn', () => {
     console.log('✅ Бот успешно вошёл на сервер!');
 
-    // Каждые 20 секунд прыгает, чтобы не кикало по AFK
+    // Прыгаем каждые 20 секунд, чтобы не быть AFK
     setInterval(() => {
       bot.setControlState('jump', true);
       setTimeout(() => bot.setControlState('jump', false), 500);
@@ -19,7 +19,7 @@ function createBot() {
   });
 
   bot.on('end', () => {
-    console.log('⛔ Бот отключён. Переподключаюсь через 10 секунд...');
+    console.log('⛔ Бот отключён. Переподключаемся через 10 секунд...');
     setTimeout(createBot, 10000);
   });
 
