@@ -2,20 +2,33 @@ const mineflayer = require('mineflayer');
 
 function createBot() {
   const bot = mineflayer.createBot({
-    host: 'testys.aternos.me', // замени на свой адрес
-    port: 25565,
-    username: 'MR_ttk', // или любой другой ник
-    version: '1.21.1'
+    host: 'testys.aternos.me',
+    port: 44813,
+    username: 'mr_aft',
+    version: '1.21.1',
+    plugins: {
+      chat: null // отключаем встроенный обработчик чата
+    }
   });
 
   bot.on('spawn', () => {
     console.log('✅ Бот успешно вошёл на сервер!');
 
-    // Прыгаем каждые 20 секунд, чтобы не быть AFK
     setInterval(() => {
       bot.setControlState('jump', true);
       setTimeout(() => bot.setControlState('jump', false), 500);
     }, 20000);
+  });
+
+  bot.on('death', () => {
+    console.log('💀 Бот умер, возрождаюсь...');
+    setTimeout(() => {
+      try {
+        bot.pressButton(0); // имитируем нажатие кнопки "Respawn"
+      } catch (err) {
+        console.log('Ошибка при возрождении:', err.message);
+      }
+    }, 3000);
   });
 
   bot.on('end', () => {
@@ -27,5 +40,14 @@ function createBot() {
     console.log('⚠️ Ошибка:', err.message);
   });
 }
+
+// Глобальный ловец ошибок для игнорирования ошибки парсинга чата
+process.on('uncaughtException', function (err) {
+  if (err.message && err.message.includes('unknown chat format code')) {
+    console.log('Игнорируем ошибку парсинга чата:', err.message);
+  } else {
+    console.error('Неизвестная ошибка:', err);
+  }
+});
 
 createBot();
