@@ -2,9 +2,9 @@ const mineflayer = require('mineflayer');
 
 function createBot() {
   const bot = mineflayer.createBot({
-    host: 'ТВОЙ_АДРЕС.aternos.me', // замени на свой адрес
+    host: 'testys.aternos.me', // замени на свой адрес
     port: 25565,
-    username: 'number1_of1', // или любой другой ник
+    username: 'MR_ttk', // или любой другой ник
     version: '1.21.1'
   });
 
