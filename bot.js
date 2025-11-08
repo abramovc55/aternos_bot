@@ -3,7 +3,7 @@ const readline = require('readline');
 const Vec3 = require('vec3');
 
 let bot;
-let reconnectTimeout = 10000; // 10 секунд между переподключениями
+let reconnectTimeout = 3000; // 3e секунд между переподключениями
 let farming = false;
 let mining = false;
 let miningLoopActive = false;
@@ -41,6 +41,21 @@ function createBot() {
     }
   });
 
+
+// === Функция логирования с временем и предполагаемым киком через 30 минут ===
+function logWithKick(message, kickMinutes = 30) {
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+
+  const kickDate = new Date(now.getTime() + kickMinutes * 60000);
+  const kickHours = kickDate.getHours().toString().padStart(2, '0');
+  const kickMinutesStr = kickDate.getMinutes().toString().padStart(2, '0');
+
+  console.log(`[${hours}:${minutes}] ${message} предполагаемый кик в ${kickHours}:${kickMinutesStr}`);
+}
+
+bot.on('spawn', () => logWithKick('Бот появился в мире!'));
 
     // === Автоматический сон, если кто-то лёг на кровать ===
   bot.on('message', async (jsonMsg) => {
@@ -82,34 +97,42 @@ function createBot() {
   });
 
 
-  // === Обработка чата ===
-  bot.on('chat', (username, message) => {
-    if (username === bot.username) return;
-    console.log(`💬 ${username}: ${message}`);
-  });
-
   // === Обработка отключений ===
-  bot.on('kicked', (reason) => {
-    console.log(`🚪 Бота кикнули: ${reason}`);
-    reconnect();
-  });
+bot.on('kicked', (reason, loggedIn) => {
+  let reasonStr;
 
-  bot.on('end', () => {
-    console.log('⛔ Соединение потеряно. Переподключаемся...');
-    reconnect();
-  });
+  if (typeof reason === 'string') {
+    reasonStr = reason;
+  } else if (reason && typeof reason === 'object') {
+    // Обычно у объекта есть .text или .toString()
+    reasonStr = JSON.stringify(reason);
+  } else {
+    reasonStr = String(reason);
+  }
 
-  bot.on('error', (err) => {
-    if (err.code === 'ECONNRESET') {
-      console.log('⚠️ Сервер сбросил соединение (ECONNRESET). Переподключаемся...');
-      reconnect();
-    } else if (err.name === 'PartialReadError') {
-      // игнорируем
-      return;
-    } else {
-      console.error('❌ Ошибка:', err);
-    }
-  });
+  console.log(`🚪 Бота кикнули: ${reasonStr}`);
+  reconnect();
+});
+
+bot.on('end', () => {
+  console.log('⛔ Соединение потеряно. Возможно timed out. Переподключаемся...');
+  reconnect();
+});
+
+bot.on('error', (err) => {
+  if (err.code === 'ECONNRESET') {
+    console.log('⚠️ Сервер сбросил соединение (ECONNRESET). Переподключаемся...');
+    reconnect();
+  } else if (err.message && err.message.includes('timed out')) {
+    console.log('⚠️ Соединение потеряно (timed out). Переподключаемся...');
+    reconnect();
+  } else if (err.name === 'PartialReadError') {
+    // игнорируем
+    return;
+  } else {
+    console.error('❌ Ошибка:', err);
+  }
+});
 
   // === Автофарм мобов ===
   setInterval(() => {
@@ -158,32 +181,46 @@ function createBot() {
     }
   }, 1000);
 
-  // === АНТИ-АФК ===
-  setInterval(() => {
-    if (!bot.entity) return;
+// === АНТИ-АФК (улучшенный) ===
+setInterval(async () => {
+  if (!bot.entity) return;
 
-    try {
-      // случайное направление движения
-      const actions = ['forward', 'back', 'left', 'right'];
-      const action = actions[Math.floor(Math.random() * actions.length)];
+  try {
+    // --- Случайное движение ---
+    const actions = ['forward', 'back', 'left', 'right'];
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    bot.setControlState(action, true);
+    setTimeout(() => bot.setControlState(action, false), 500);
 
-      bot.setControlState(action, true);
-      setTimeout(() => bot.setControlState(action, false), 500);
-
-      // иногда прыгает
-      if (Math.random() < 0.3) bot.setControlState('jump', true);
+    // --- Случайный прыжок ---
+    if (Math.random() < 0.5) {
+      bot.setControlState('jump', true);
       setTimeout(() => bot.setControlState('jump', false), 300);
-
-      // слегка двигает головой
-      const yaw = Math.random() * Math.PI * 2;
-      const pitch = (Math.random() - 0.5) * 0.5;
-      bot.look(yaw, pitch, false);
-
-      console.log('🌀 Анти-АФК: бот слегка пошевелился');
-    } catch (err) {
-      console.log('⚠️ Ошибка анти-АФК:', err.message);
     }
-  }, 60 * 1000); // каждые 60 секунд
+
+    // --- Случайный присед (shift) ---
+    if (Math.random() < 0.5) {
+      bot.setControlState('sneak', true);
+      setTimeout(() => bot.setControlState('sneak', false), 2000);
+      console.log('🛋️ Анти-АФК: бот сел на shift');
+    }
+
+    // --- Случайный клик по направлению курсора ---
+    if (Math.random() < 0.5) {
+      bot.swingArm('right');
+      console.log('👋 Анти-АФК: бот кликнул левой кнопкой');
+    }
+
+    // --- Лёгкое движение головы ---
+    const yaw = Math.random() * Math.PI * 2;
+    const pitch = (Math.random() - 0.5) * 0.5;
+    bot.look(yaw, pitch, false);
+
+    console.log('🌀 Анти-АФК: бот слегка пошевелился');
+  } catch (err) {
+    console.log('⚠️ Ошибка анти-АФК:', err.message);
+  }
+}, 60 * 1000); // каждые 60 секунд
 }
 
 // === Переподключение ===
